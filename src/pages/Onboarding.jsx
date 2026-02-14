@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCareOps } from '../context/CareOpsContext';
-import { Sparkles, ArrowRight, Mail, MessageSquare, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { Sparkles, ArrowRight } from 'lucide-react';
 
 const TIMEZONES = [
     'UTC-12:00 (Baker Island)',
@@ -35,12 +35,7 @@ const TIMEZONES = [
 const Onboarding = () => {
     const {
         setBusiness,
-        onboardingStep,
-        updateOnboardingStep,
-        activateWorkspace,
-        integrations,
-        connectIntegration,
-        disconnectIntegration
+        activateWorkspace
     } = useCareOps();
     const navigate = useNavigate();
 
@@ -50,8 +45,6 @@ const Onboarding = () => {
         timezone: '',
         email: '',
     });
-
-    const [integrationError, setIntegrationError] = useState('');
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -63,33 +56,10 @@ const Onboarding = () => {
         if (!formData.name || !formData.address || !formData.timezone || !formData.email) return;
 
         setBusiness(formData);
-        updateOnboardingStep(2);
-    };
-
-    const handleStep2Submit = () => {
-        // Validate at least one integration is connected
-        if (!integrations.email.connected && !integrations.sms.connected) {
-            setIntegrationError('Please connect at least one integration to continue');
-            return;
-        }
-
-        setIntegrationError('');
         activateWorkspace();
-        updateOnboardingStep('complete');
+        navigate('/dashboard');
     };
 
-    const handleIntegrationToggle = (type) => {
-        if (integrations[type].connected) {
-            disconnectIntegration(type);
-        } else {
-            connectIntegration(type);
-        }
-        setIntegrationError('');
-    };
-
-    if (onboardingStep === 'complete') {
-        return <SuccessScreen navigate={navigate} />;
-    }
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center p-4 relative overflow-hidden">
@@ -112,158 +82,74 @@ const Onboarding = () => {
                     <p className="text-slate-600 font-medium">Let's get your business set up in minutes</p>
                 </div>
 
-                {/* Progress Indicator */}
-                <div className="mb-8">
-                    <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-semibold text-slate-700">Step {onboardingStep} of 2</span>
-                        <span className="text-sm font-semibold text-indigo-600">{onboardingStep === 1 ? 'Workspace Setup' : 'Integrations'}</span>
+                {/* Create Workspace Form */}
+                <form onSubmit={handleStep1Submit} className="space-y-5">
+                    <div className="animate-slide-in" style={{ animationDelay: '0.1s' }}>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Business Name *</label>
+                        <input
+                            type="text"
+                            name="name"
+                            value={formData.name}
+                            onChange={handleChange}
+                            required
+                            className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all bg-white/80"
+                            placeholder="e.g., Acme Healthcare"
+                        />
                     </div>
-                    <div className="w-full bg-slate-200 rounded-full h-2">
-                        <div
-                            className="bg-gradient-to-r from-indigo-600 to-purple-600 h-2 rounded-full transition-all duration-500"
-                            style={{ width: `${(onboardingStep / 2) * 100}%` }}
-                        ></div>
+
+                    <div className="animate-slide-in" style={{ animationDelay: '0.15s' }}>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Business Address *</label>
+                        <input
+                            type="text"
+                            name="address"
+                            value={formData.address}
+                            onChange={handleChange}
+                            required
+                            className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all bg-white/80"
+                            placeholder="123 Main St, City, State"
+                        />
                     </div>
-                </div>
 
-                {/* Step 1: Create Workspace */}
-                {onboardingStep === 1 && (
-                    <form onSubmit={handleStep1Submit} className="space-y-5">
-                        <div className="animate-slide-in">
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">Business Name *</label>
-                            <input
-                                type="text"
-                                name="name"
-                                required
-                                className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300 bg-white/80 hover:border-indigo-300"
-                                placeholder="e.g. Smith Dental Clinic"
-                                value={formData.name}
-                                onChange={handleChange}
-                            />
-                        </div>
-
-                        <div className="animate-slide-in" style={{ animationDelay: '0.1s' }}>
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">Business Address *</label>
-                            <input
-                                type="text"
-                                name="address"
-                                required
-                                className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300 bg-white/80 hover:border-indigo-300"
-                                placeholder="123 Main St, City, State 12345"
-                                value={formData.address}
-                                onChange={handleChange}
-                            />
-                        </div>
-
-                        <div className="animate-slide-in" style={{ animationDelay: '0.2s' }}>
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">Time Zone *</label>
-                            <select
-                                name="timezone"
-                                required
-                                className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300 bg-white/80 hover:border-indigo-300"
-                                value={formData.timezone}
-                                onChange={handleChange}
-                            >
-                                <option value="">Select a timezone...</option>
-                                {TIMEZONES.map(tz => (
-                                    <option key={tz} value={tz}>{tz}</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div className="animate-slide-in" style={{ animationDelay: '0.3s' }}>
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">Contact Email *</label>
-                            <input
-                                type="email"
-                                name="email"
-                                required
-                                className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300 bg-white/80 hover:border-indigo-300"
-                                placeholder="contact@business.com"
-                                value={formData.email}
-                                onChange={handleChange}
-                            />
-                        </div>
-
-                        <button
-                            type="submit"
-                            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold py-4 px-6 rounded-xl transition-all duration-300 mt-6 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 animate-slide-in flex items-center justify-center space-x-2"
-                            style={{ animationDelay: '0.4s' }}
+                    <div className="animate-slide-in" style={{ animationDelay: '0.2s' }}>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Time Zone *</label>
+                        <select
+                            name="timezone"
+                            value={formData.timezone}
+                            onChange={handleChange}
+                            required
+                            className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all bg-white/80"
                         >
-                            <span>Continue to Integrations</span>
-                            <ArrowRight className="w-5 h-5" />
-                        </button>
-                    </form>
-                )}
-
-                {/* Step 2: Integration Setup */}
-                {onboardingStep === 2 && (
-                    <div className="space-y-6">
-                        <div className="text-center mb-6">
-                            <h2 className="text-2xl font-bold text-slate-900 mb-2">Connect Your Integrations</h2>
-                            <p className="text-slate-600">Connect at least one integration to activate your workspace</p>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* Email Integration */}
-                            <IntegrationCard
-                                type="email"
-                                title="Email"
-                                description="Confirmations & alerts"
-                                icon={<Mail className="w-6 h-6" />}
-                                connected={integrations.email.connected}
-                                onToggle={() => handleIntegrationToggle('email')}
-                            />
-
-                            {/* SMS Integration */}
-                            <IntegrationCard
-                                type="sms"
-                                title="SMS"
-                                description="Reminders & updates"
-                                icon={<MessageSquare className="w-6 h-6" />}
-                                connected={integrations.sms.connected}
-                                onToggle={() => handleIntegrationToggle('sms')}
-                            />
-                        </div>
-
-                        {/* Error Message */}
-                        {integrationError && (
-                            <div className="flex items-center space-x-2 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 animate-fade-in">
-                                <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                                <span className="text-sm font-semibold">{integrationError}</span>
-                            </div>
-                        )}
-
-                        {/* Integration Status Log */}
-                        <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
-                            <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-3">Integration Status</h3>
-                            <div className="space-y-2">
-                                {Object.entries(integrations).map(([type, data]) => (
-                                    data.timestamp && (
-                                        <div key={type} className="flex items-center justify-between text-sm">
-                                            <span className="font-semibold text-slate-700 capitalize">{type}</span>
-                                            <div className="flex items-center space-x-2">
-                                                <span className={`${data.connected ? 'text-green-600' : 'text-slate-500'}`}>
-                                                    {data.status}
-                                                </span>
-                                                <span className="text-slate-400 text-xs">
-                                                    {new Date(data.timestamp).toLocaleTimeString()}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    )
-                                ))}
-                            </div>
-                        </div>
-
-                        <button
-                            onClick={handleStep2Submit}
-                            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold py-4 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center justify-center space-x-2"
-                        >
-                            <span>Complete Setup</span>
-                            <ArrowRight className="w-5 h-5" />
-                        </button>
+                            <option value="">Select your timezone...</option>
+                            {TIMEZONES.map((tz) => (
+                                <option key={tz} value={tz}>
+                                    {tz}
+                                </option>
+                            ))}
+                        </select>
                     </div>
-                )}
+
+                    <div className="animate-slide-in" style={{ animationDelay: '0.25s' }}>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Contact Email *</label>
+                        <input
+                            type="email"
+                            name="email"
+                            value={formData.email}
+                            onChange={handleChange}
+                            required
+                            className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all bg-white/80"
+                            placeholder="contact@yourbusiness.com"
+                        />
+                    </div>
+
+                    <button
+                        type="submit"
+                        className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold py-4 px-6 rounded-xl transition-all duration-300 mt-6 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 animate-slide-in flex items-center justify-center space-x-2"
+                        style={{ animationDelay: '0.4s' }}
+                    >
+                        <span>Get Started</span>
+                        <ArrowRight className="w-5 h-5" />
+                    </button>
+                </form>
 
                 <p className="text-center text-xs text-slate-500 mt-6">
                     By continuing, you agree to our Terms of Service
@@ -272,56 +158,5 @@ const Onboarding = () => {
         </div>
     );
 };
-
-const IntegrationCard = ({ type, title, description, icon, connected, onToggle }) => (
-    <div className={`p-6 rounded-xl border-2 transition-all duration-300 ${connected
-            ? 'bg-green-50 border-green-300'
-            : 'bg-white border-slate-200 hover:border-indigo-300'
-        }`}>
-        <div className="flex items-center justify-between mb-4">
-            <div className={`p-3 rounded-lg ${connected ? 'bg-green-100' : 'bg-slate-100'}`}>
-                {icon}
-            </div>
-            {connected ? (
-                <CheckCircle className="w-6 h-6 text-green-600" />
-            ) : (
-                <XCircle className="w-6 h-6 text-slate-300" />
-            )}
-        </div>
-        <h3 className="text-lg font-bold text-slate-900 mb-1">{title}</h3>
-        <p className="text-sm text-slate-600 mb-4">{description}</p>
-        <button
-            onClick={onToggle}
-            className={`w-full py-2 px-4 rounded-lg font-semibold transition-all ${connected
-                    ? 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                    : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700'
-                }`}
-        >
-            {connected ? 'Disconnect' : 'Connect'}
-        </button>
-    </div>
-);
-
-const SuccessScreen = ({ navigate }) => (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-2xl p-8 text-center animate-fade-in">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full mb-6 shadow-lg animate-bounce">
-                <CheckCircle className="w-12 h-12 text-white" />
-            </div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-4">
-                You're All Set! 🎉
-            </h1>
-            <p className="text-slate-600 mb-8">
-                Your workspace is now active and ready to go. Start managing your business operations with CareOps.
-            </p>
-            <button
-                onClick={() => navigate('/dashboard')}
-                className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold py-4 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-            >
-                Go to Dashboard →
-            </button>
-        </div>
-    </div>
-);
 
 export default Onboarding;

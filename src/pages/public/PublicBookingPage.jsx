@@ -7,8 +7,10 @@ const PublicBookingPage = () => {
     const { businessId } = useParams();
     const {
         bookingConfig,
-        addContact,
-        addConversation,
+        findOrCreateContact,
+        findOrCreateConversation,
+        sendBookingConfirmation,
+        scheduleReminders,
         addMessageToConversation,
         addBooking,
         integrations,
@@ -36,14 +38,8 @@ const PublicBookingPage = () => {
     const handleBookingConfirm = (e) => {
         e.preventDefault();
 
-        // Create or find contact
-        const contact = addContact(customerInfo);
-
-        // Create conversation
-        const conversation = addConversation({
-            contactId: contact.id,
-            contactName: contact.name
-        });
+        // Find or create contact (prevents duplicates)
+        const contact = findOrCreateContact(customerInfo);
 
         // Create booking
         const booking = addBooking({
@@ -60,13 +56,19 @@ const PublicBookingPage = () => {
             createdAt: new Date().toISOString()
         });
 
-        // Send booking confirmation message
-        const channel = integrations.email.connected ? 'email' : 'sms';
-        addMessageToConversation(conversation.id, {
-            sender: 'system',
-            content: `Booking confirmed! ${selectedService.name} on ${selectedDate} at ${selectedTime}. We look forward to seeing you!`,
-            channel,
-            type: 'automated'
+        // Find or create conversation with booking linkage
+        const conversation = findOrCreateConversation(contact.id, contact.name, {
+            contactEmail: contact.email,
+            contactPhone: contact.phone,
+            automationStatus: 'Active',
+            relatedBookingId: booking.id
+        });
+
+        // Send automated booking confirmation
+        sendBookingConfirmation(conversation.id, {
+            service: selectedService.name,
+            date: selectedDate,
+            time: selectedTime
         });
 
         // Automatically send forms linked to this booking type
@@ -74,13 +76,23 @@ const PublicBookingPage = () => {
 
         if (sentForms.length > 0) {
             // Notify about forms in conversation
+            const channel = integrations.email.connected ? 'email' : 'sms';
             addMessageToConversation(conversation.id, {
                 sender: 'system',
                 content: `We've sent you ${sentForms.length} form(s) to complete before your appointment. Please check your ${channel}.`,
                 channel,
-                type: 'automated'
+                type: 'form_reminder',
+                deliveryStatus: 'delivered',
+                read: true
             });
         }
+
+        // Schedule automated reminders (24h and 1h before)
+        scheduleReminders(conversation.id, {
+            service: selectedService.name,
+            date: selectedDate,
+            time: selectedTime
+        });
 
         // Deduct resources for this booking type
         deductResourceUsage(selectedService.id);

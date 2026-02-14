@@ -1,11 +1,11 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCareOps } from '../context/CareOpsContext';
-import { Users, Calendar, ClipboardList, MessageSquare, TrendingUp, Sparkles, Inbox, FileText, Package, Bell, Rocket, ArrowRight } from 'lucide-react';
+import { Users, Calendar, ClipboardList, MessageSquare, TrendingUp, Sparkles, Inbox, FileText, Package, Bell, Rocket, ArrowRight, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
 import AlertsPanel from '../components/AlertsPanel';
 
 const Dashboard = () => {
-    const { business, leads, bookings, forms, workspaceStatus, alerts, formSubmissions, resources, canActivateWorkspace } = useCareOps();
+    const { business, leads, bookings, forms, workspaceStatus, alerts, formSubmissions, resources, canActivateWorkspace, conversations } = useCareOps();
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -39,6 +39,74 @@ const Dashboard = () => {
         );
     }
 
+    // Helper functions for metrics
+    const getTodaysBookings = () => {
+        const today = new Date().toISOString().split('T')[0];
+        return bookings.filter(b => b.date === today);
+    };
+
+    const getUpcomingBookings = () => {
+        const today = new Date();
+        const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+        return bookings.filter(b => {
+            const bookingDate = new Date(b.date);
+            return bookingDate >= today && bookingDate <= nextWeek;
+        });
+    };
+
+    const getCompletedBookings = () => {
+        return bookings.filter(b => b.status === 'Completed').length;
+    };
+
+    const getNoShowBookings = () => {
+        return bookings.filter(b => b.status === 'No-show').length;
+    };
+
+    const getNewInquiries = () => {
+        return leads.filter(l => l.status === 'New').length;
+    };
+
+    const getOngoingConversations = () => {
+        return conversations.filter(c => c.status === 'New' || c.status === 'Open').length;
+    };
+
+    const getUnansweredMessages = () => {
+        return conversations.filter(c => {
+            if (c.messages.length === 0) return false;
+            const lastMessage = c.messages[c.messages.length - 1];
+            return lastMessage.sender === 'customer';
+        }).length;
+    };
+
+    const getPendingForms = () => {
+        return formSubmissions.filter(f => f.status === 'Sent' || f.status === 'Pending').length;
+    };
+
+    const getOverdueForms = () => {
+        const now = new Date();
+        const fortyEightHoursAgo = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+        return formSubmissions.filter(f => {
+            if (f.status !== 'Sent' && f.status !== 'Pending') return false;
+            const sentDate = new Date(f.sentAt);
+            return sentDate < fortyEightHoursAgo;
+        }).length;
+    };
+
+    const getCompletedForms = () => {
+        return formSubmissions.filter(f => f.status === 'Completed').length;
+    };
+
+    const getLowStockItems = () => {
+        return resources.filter(r => r.quantity <= r.threshold && r.quantity > 0).length;
+    };
+
+    const getCriticalInventory = () => {
+        return resources.filter(r => r.quantity === 0).length;
+    };
+
+    const todaysBookings = getTodaysBookings();
+    const upcomingBookings = getUpcomingBookings();
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50">
             {/* Header with Gradient */}
@@ -53,7 +121,7 @@ const Dashboard = () => {
                                 <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
                                     CareOps
                                 </h1>
-                                <p className="text-xs text-slate-500">Business Management</p>
+                                <p className="text-xs text-slate-500">Business Dashboard</p>
                             </div>
                         </div>
                         <div className="flex items-center space-x-4">
@@ -91,83 +159,6 @@ const Dashboard = () => {
                     </div>
                 </div>
 
-                {/* Quick Actions */}
-                <div className="mb-8">
-                    <h3 className="text-xl font-bold text-slate-900 mb-4">Quick Actions</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <ActionCard
-                            title="Manage Leads"
-                            description="View and manage customer leads"
-                            icon={<Users className="h-6 w-6" />}
-                            onClick={() => navigate('/leads')}
-                            color="indigo"
-                        />
-                        <ActionCard
-                            title="Inbox"
-                            description="View customer conversations"
-                            icon={<Inbox className="h-6 w-6" />}
-                            onClick={() => navigate('/inbox')}
-                            color="purple"
-                        />
-                        <ActionCard
-                            title="Bookings"
-                            description="Manage appointments"
-                            icon={<Calendar className="h-6 w-6" />}
-                            onClick={() => navigate('/bookings')}
-                            color="pink"
-                        />
-                        <ActionCard
-                            title="Manage Staff"
-                            description="View and manage team members"
-                            icon={<Users className="h-6 w-6" />}
-                            onClick={() => navigate('/staff')}
-                            color="emerald"
-                        />
-                        <ActionCard
-                            title="Forms"
-                            description="Manage customer forms"
-                            icon={<FileText className="h-6 w-6" />}
-                            onClick={() => navigate('/forms')}
-                            color="teal"
-                        />
-                        <ActionCard
-                            title="Inventory"
-                            description="Track resources and stock"
-                            icon={<Package className="h-6 w-6" />}
-                            onClick={() => navigate('/inventory')}
-                            color="amber"
-                        />
-                    </div>
-                </div>
-
-                {/* Stats Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <StatCard
-                        title="Total Leads"
-                        value={leads.length}
-                        icon={<Users className="h-7 w-7" />}
-                        trend={`${leads.filter(l => l.status === 'New').length} new inquiries`}
-                        color="indigo"
-                        delay="0s"
-                    />
-                    <StatCard
-                        title="New Leads"
-                        value={leads.filter(l => l.status === 'New').length}
-                        icon={<Users className="h-7 w-7" />}
-                        trend="Awaiting contact"
-                        color="emerald"
-                        delay="0.1s"
-                    />
-                    <StatCard
-                        title="Booked Leads"
-                        value={leads.filter(l => l.status === 'Booked').length}
-                        icon={<Calendar className="h-7 w-7" />}
-                        trend="Successfully converted"
-                        color="amber"
-                        delay="0.2s"
-                    />
-                </div>
-
                 {/* Activation Prompt */}
                 {workspaceStatus === 'inactive' && (
                     <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl shadow-xl border-2 border-indigo-200 p-8 mb-8 animate-fade-in">
@@ -196,254 +187,284 @@ const Dashboard = () => {
                     </div>
                 )}
 
-                {/* Alerts Section */}
-                {alerts.length > 0 && (
-                    <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-8 mb-8 animate-fade-in">
-                        <div className="flex items-center justify-between mb-6">
-                            <div className="flex items-center space-x-4">
-                                <div className="h-14 w-14 bg-gradient-to-br from-red-100 to-orange-100 rounded-2xl flex items-center justify-center">
-                                    <Bell className="h-7 w-7 text-red-600" />
-                                </div>
-                                <div>
-                                    <h3 className="text-2xl font-bold text-slate-900">Attention Required</h3>
-                                    <p className="text-slate-600">{alerts.filter(a => !a.read).length} items need your attention</p>
-                                </div>
-                            </div>
-                        </div>
-                        <AlertsPanel maxAlerts={3} />
-                        {alerts.length > 3 && (
-                            <div className="mt-4 text-center">
-                                <p className="text-sm text-slate-500">
-                                    Showing top 3 alerts • {alerts.length - 3} more alerts available
-                                </p>
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {/* Stats Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <StatCard
-                        title="Total Leads"
-                        value={leads.length}
-                        icon={<Users className="h-7 w-7" />}
-                        trend={`${leads.filter(l => l.status === 'New').length} new inquiries`}
-                        color="indigo"
-                        delay="0s"
-                    />
-                    <StatCard
-                        title="Pending Forms"
-                        value={formSubmissions.filter(f => f.status === 'Sent' || f.status === 'Pending').length}
-                        icon={<FileText className="h-7 w-7" />}
-                        trend="Awaiting completion"
-                        color="amber"
-                        delay="0.1s"
-                    />
-                    <StatCard
-                        title="Low Stock Items"
-                        value={resources.filter(r => r.quantity <= r.threshold && r.quantity > 0).length}
-                        icon={<Package className="h-7 w-7" />}
-                        trend="Need restocking"
-                        color="emerald"
-                        delay="0.2s" />
-                </div>
-
-                {/* Main Content Area - Leads Management */}
-                <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-8 animate-fade-in">
+                {/* SECTION 1: Booking Overview */}
+                <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-8 mb-8 animate-fade-in">
                     <div className="flex items-center justify-between mb-6">
                         <div className="flex items-center space-x-4">
-                            <div className="h-14 w-14 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-2xl flex items-center justify-center">
-                                <Users className="h-7 w-7 text-indigo-600" />
+                            <div className="h-14 w-14 bg-gradient-to-br from-pink-100 to-pink-200 rounded-2xl flex items-center justify-center">
+                                <Calendar className="h-7 w-7 text-pink-600" />
                             </div>
                             <div>
-                                <h3 className="text-2xl font-bold text-slate-900">Leads Management</h3>
-                                <p className="text-slate-600">Track and manage customer inquiries</p>
+                                <h3 className="text-2xl font-bold text-slate-900">Booking Overview</h3>
+                                <p className="text-slate-600">Today's appointments and upcoming schedule</p>
                             </div>
                         </div>
                         <button
-                            onClick={() => navigate('/leads')}
-                            className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-300"
+                            onClick={() => navigate('/bookings')}
+                            className="px-4 py-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors flex items-center space-x-2"
                         >
-                            View All Leads →
+                            <span>View All</span>
+                            <ArrowRight className="w-4 h-4" />
                         </button>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                        {/* Team Access Card */}
-                        <div
-                            onClick={() => navigate('/staff')}
-                            className="bg-slate-50 rounded-xl p-6 border border-slate-100 cursor-pointer hover:bg-slate-100 hover:shadow-md transition-all group"
-                        >
-                            <div className="flex items-center justify-between mb-4">
-                                <div className="p-3 bg-white rounded-lg shadow-sm group-hover:scale-110 transition-transform">
-                                    <Users className="w-6 h-6 text-indigo-600" />
-                                </div>
-                                <span className="bg-indigo-100 text-indigo-700 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
-                                    Team
-                                </span>
-                            </div>
-                            <h3 className="text-lg font-bold text-slate-900 mb-1">Staff Access</h3>
-                            <p className="text-slate-600 text-sm">Manage team roles and permissions</p>
-                        </div>
-
-                        {/* Settings Card */}
-                        <div
-                            onClick={() => navigate('/settings')}
-                            className="bg-slate-50 rounded-xl p-6 border border-slate-100 cursor-pointer hover:bg-slate-100 hover:shadow-md transition-all group"
-                        >
-                            <div className="flex items-center justify-between mb-4">
-                                <div className="p-3 bg-white rounded-lg shadow-sm group-hover:scale-110 transition-transform">
-                                    <Sparkles className="w-6 h-6 text-slate-600" />
-                                </div>
-                                <span className="bg-amber-100 text-amber-700 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider border border-amber-200">
-                                    Owner Only
-                                </span>
-                            </div>
-                            <h3 className="text-lg font-bold text-slate-900 mb-1">System Settings</h3>
-                            <p className="text-slate-600 text-sm">Configure business preferences</p>
-                        </div>
-                    </div>
-
-                    {/* Quick Stats */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                        <QuickStat label="Total" value={leads.length} color="slate" />
-                        <QuickStat label="New" value={leads.filter(l => l.status === 'New').length} color="blue" />
-                        <QuickStat label="Contacted" value={leads.filter(l => l.status === 'Contacted').length} color="purple" />
-                        <QuickStat label="Booked" value={leads.filter(l => l.status === 'Booked').length} color="green" />
-                    </div>
-
-                    {/* Recent Leads Preview */}
-                    {leads.length > 0 ? (
-                        <div className="border-t border-slate-100 pt-6">
-                            <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">Recent Leads</h4>
-                            <div className="space-y-3">
-                                {leads.slice(-3).reverse().map((lead) => (
-                                    <div key={lead.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors">
-                                        <div className="flex items-center space-x-3">
-                                            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold">
-                                                {lead.name.charAt(0)}
-                                            </div>
-                                            <div>
-                                                <p className="font-semibold text-slate-900">{lead.name}</p>
-                                                <p className="text-sm text-slate-600">{lead.service}</p>
-                                            </div>
-                                        </div>
-                                        <span className={`px-3 py-1 rounded-lg text-xs font-semibold ${lead.status === 'New' ? 'bg-blue-100 text-blue-700' :
-                                            lead.status === 'Contacted' ? 'bg-purple-100 text-purple-700' :
-                                                lead.status === 'Booked' ? 'bg-green-100 text-green-700' :
-                                                    'bg-red-100 text-red-700'
-                                            }`}>
-                                            {lead.status}
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
+                    {bookings.length === 0 ? (
+                        <div className="text-center py-8 bg-green-50 rounded-xl border-2 border-green-200">
+                            <CheckCircle2 className="w-12 h-12 text-green-600 mx-auto mb-3" />
+                            <p className="text-green-900 font-semibold mb-1">No upcoming bookings</p>
+                            <p className="text-sm text-green-700">Your schedule is clear</p>
                         </div>
                     ) : (
-                        <div className="text-center py-8 border-t border-slate-100">
-                            <p className="text-slate-600 mb-4">No leads yet. Start tracking customer inquiries!</p>
-                            <button
-                                onClick={() => navigate('/leads')}
-                                className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-300"
-                            >
-                                <Users className="w-5 h-5" />
-                                <span>Go to Leads</span>
-                            </button>
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <MetricCard
+                                label="Today's Bookings"
+                                value={todaysBookings.length}
+                                icon={<Calendar className="w-5 h-5" />}
+                                color="blue"
+                            />
+                            <MetricCard
+                                label="Upcoming (7 days)"
+                                value={upcomingBookings.length}
+                                icon={<Clock className="w-5 h-5" />}
+                                color="purple"
+                            />
+                            <MetricCard
+                                label="Completed"
+                                value={getCompletedBookings()}
+                                icon={<CheckCircle2 className="w-5 h-5" />}
+                                color="green"
+                            />
+                            <MetricCard
+                                label="No-shows"
+                                value={getNoShowBookings()}
+                                icon={<AlertCircle className="w-5 h-5" />}
+                                color="red"
+                            />
                         </div>
                     )}
+                </div>
+
+                {/* SECTION 2: Leads & Conversations */}
+                <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-8 mb-8 animate-fade-in">
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center space-x-4">
+                            <div className="h-14 w-14 bg-gradient-to-br from-indigo-100 to-indigo-200 rounded-2xl flex items-center justify-center">
+                                <MessageSquare className="h-7 w-7 text-indigo-600" />
+                            </div>
+                            <div>
+                                <h3 className="text-2xl font-bold text-slate-900">Leads & Conversations</h3>
+                                <p className="text-slate-600">Customer inquiries and ongoing discussions</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <button
+                                onClick={() => navigate('/leads')}
+                                className="px-4 py-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors flex items-center space-x-2"
+                            >
+                                <span>Leads</span>
+                                <ArrowRight className="w-4 h-4" />
+                            </button>
+                            <button
+                                onClick={() => navigate('/inbox')}
+                                className="px-4 py-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors flex items-center space-x-2"
+                            >
+                                <span>Inbox</span>
+                                <ArrowRight className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
+
+                    {leads.length === 0 && conversations.length === 0 ? (
+                        <div className="text-center py-8 bg-green-50 rounded-xl border-2 border-green-200">
+                            <CheckCircle2 className="w-12 h-12 text-green-600 mx-auto mb-3" />
+                            <p className="text-green-900 font-semibold mb-1">All messages responded</p>
+                            <p className="text-sm text-green-700">No pending inquiries</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <MetricCard
+                                label="New Inquiries"
+                                value={getNewInquiries()}
+                                icon={<Users className="w-5 h-5" />}
+                                color="blue"
+                            />
+                            <MetricCard
+                                label="Ongoing Conversations"
+                                value={getOngoingConversations()}
+                                icon={<MessageSquare className="w-5 h-5" />}
+                                color="purple"
+                            />
+                            <MetricCard
+                                label="Unanswered Messages"
+                                value={getUnansweredMessages()}
+                                icon={<Inbox className="w-5 h-5" />}
+                                color={getUnansweredMessages() > 0 ? "red" : "green"}
+                            />
+                        </div>
+                    )}
+                </div>
+
+                {/* SECTION 3: Forms Status */}
+                <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-8 mb-8 animate-fade-in">
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center space-x-4">
+                            <div className="h-14 w-14 bg-gradient-to-br from-teal-100 to-teal-200 rounded-2xl flex items-center justify-center">
+                                <FileText className="h-7 w-7 text-teal-600" />
+                            </div>
+                            <div>
+                                <h3 className="text-2xl font-bold text-slate-900">Forms Status</h3>
+                                <p className="text-slate-600">Customer form submissions and completion</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => navigate('/forms')}
+                            className="px-4 py-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors flex items-center space-x-2"
+                        >
+                            <span>View All</span>
+                            <ArrowRight className="w-4 h-4" />
+                        </button>
+                    </div>
+
+                    {formSubmissions.length === 0 ? (
+                        <div className="text-center py-8 bg-green-50 rounded-xl border-2 border-green-200">
+                            <CheckCircle2 className="w-12 h-12 text-green-600 mx-auto mb-3" />
+                            <p className="text-green-900 font-semibold mb-1">No pending forms</p>
+                            <p className="text-sm text-green-700">All forms are up to date</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <MetricCard
+                                label="Pending Forms"
+                                value={getPendingForms()}
+                                icon={<Clock className="w-5 h-5" />}
+                                color="yellow"
+                            />
+                            <MetricCard
+                                label="Overdue Forms"
+                                value={getOverdueForms()}
+                                icon={<AlertCircle className="w-5 h-5" />}
+                                color={getOverdueForms() > 0 ? "red" : "green"}
+                            />
+                            <MetricCard
+                                label="Completed Forms"
+                                value={getCompletedForms()}
+                                icon={<CheckCircle2 className="w-5 h-5" />}
+                                color="green"
+                            />
+                        </div>
+                    )}
+                </div>
+
+                {/* SECTION 4: Inventory Alerts */}
+                <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-8 mb-8 animate-fade-in">
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center space-x-4">
+                            <div className="h-14 w-14 bg-gradient-to-br from-amber-100 to-amber-200 rounded-2xl flex items-center justify-center">
+                                <Package className="h-7 w-7 text-amber-600" />
+                            </div>
+                            <div>
+                                <h3 className="text-2xl font-bold text-slate-900">Inventory Alerts</h3>
+                                <p className="text-slate-600">Stock levels and resource availability</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => navigate('/inventory')}
+                            className="px-4 py-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors flex items-center space-x-2"
+                        >
+                            <span>View All</span>
+                            <ArrowRight className="w-4 h-4" />
+                        </button>
+                    </div>
+
+                    {resources.length === 0 || (getLowStockItems() === 0 && getCriticalInventory() === 0) ? (
+                        <div className="text-center py-8 bg-green-50 rounded-xl border-2 border-green-200">
+                            <CheckCircle2 className="w-12 h-12 text-green-600 mx-auto mb-3" />
+                            <p className="text-green-900 font-semibold mb-1">Inventory levels healthy</p>
+                            <p className="text-sm text-green-700">All items are well stocked</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <MetricCard
+                                label="Low Stock Items"
+                                value={getLowStockItems()}
+                                icon={<Package className="w-5 h-5" />}
+                                color="yellow"
+                            />
+                            <MetricCard
+                                label="Critical (Out of Stock)"
+                                value={getCriticalInventory()}
+                                icon={<AlertCircle className="w-5 h-5" />}
+                                color={getCriticalInventory() > 0 ? "red" : "green"}
+                            />
+                        </div>
+                    )}
+                </div>
+
+                {/* SECTION 5: Key Alerts */}
+                <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-8 animate-fade-in">
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center space-x-4">
+                            <div className="h-14 w-14 bg-gradient-to-br from-red-100 to-orange-100 rounded-2xl flex items-center justify-center">
+                                <Bell className="h-7 w-7 text-red-600" />
+                            </div>
+                            <div>
+                                <h3 className="text-2xl font-bold text-slate-900">Key Alerts</h3>
+                                <p className="text-slate-600">
+                                    {alerts.filter(a => !a.read).length > 0
+                                        ? `${alerts.filter(a => !a.read).length} items need your attention`
+                                        : 'All systems running smoothly'}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <AlertsPanel maxAlerts={null} showGrouping={true} />
                 </div>
             </main>
         </div>
     );
 };
 
-const QuickStat = ({ label, value, color }) => {
+// Metric Card Component
+const MetricCard = ({ label, value, icon, color }) => {
     const colorClasses = {
-        slate: 'text-slate-700 bg-slate-100',
-        blue: 'text-blue-700 bg-blue-100',
-        purple: 'text-purple-700 bg-purple-100',
-        green: 'text-green-700 bg-green-100'
-    };
-
-    return (
-        <div className={`${colorClasses[color]} rounded-xl p-4 text-center`}>
-            <p className="text-2xl font-bold">{value}</p>
-            <p className="text-xs font-semibold uppercase tracking-wider mt-1">{label}</p>
-        </div>
-    );
-};
-
-// Action Card Component
-const ActionCard = ({ title, description, icon, onClick, color }) => {
-    const colorClasses = {
-        indigo: 'from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700',
-        purple: 'from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700',
-        pink: 'from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700',
-        emerald: 'from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700',
-        teal: 'from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700',
-        amber: 'from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700',
-    };
-
-    return (
-        <div
-            onClick={onClick}
-            className={`bg-gradient-to-br ${colorClasses[color]} rounded-xl p-6 text-white cursor-pointer hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300`}
-        >
-            <div className="flex items-center justify-between mb-3">
-                <div className="p-3 bg-white/20 rounded-lg backdrop-blur-sm">
-                    {icon}
-                </div>
-            </div>
-            <h3 className="text-lg font-bold mb-1">{title}</h3>
-            <p className="text-sm opacity-90">{description}</p>
-        </div>
-    );
-};
-
-const StatCard = ({ title, value, icon, trend, color, delay }) => {
-    const colorClasses = {
-        indigo: {
-            bg: 'from-indigo-500 to-indigo-600',
-            text: 'text-indigo-600',
-            iconBg: 'bg-indigo-50',
-            border: 'border-indigo-100'
+        blue: {
+            bg: 'bg-blue-50',
+            text: 'text-blue-700',
+            icon: 'text-blue-600'
         },
-        emerald: {
-            bg: 'from-emerald-500 to-emerald-600',
-            text: 'text-emerald-600',
-            iconBg: 'bg-emerald-50',
-            border: 'border-emerald-100'
+        purple: {
+            bg: 'bg-purple-50',
+            text: 'text-purple-700',
+            icon: 'text-purple-600'
         },
-        amber: {
-            bg: 'from-amber-500 to-amber-600',
-            text: 'text-amber-600',
-            iconBg: 'bg-amber-50',
-            border: 'border-amber-100'
+        green: {
+            bg: 'bg-green-50',
+            text: 'text-green-700',
+            icon: 'text-green-600'
+        },
+        red: {
+            bg: 'bg-red-50',
+            text: 'text-red-700',
+            icon: 'text-red-600'
+        },
+        yellow: {
+            bg: 'bg-yellow-50',
+            text: 'text-yellow-700',
+            icon: 'text-yellow-600'
         }
     };
 
-    const colors = colorClasses[color];
+    const colors = colorClasses[color] || colorClasses.blue;
 
     return (
-        <div
-            className={`bg-white rounded-2xl p-6 shadow-lg border-2 ${colors.border} card-hover animate-slide-in relative overflow-hidden`}
-            style={{ animationDelay: delay }}
-        >
-            {/* Gradient Accent */}
-            <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${colors.bg} opacity-5 rounded-full -mr-16 -mt-16`}></div>
-
-            <div className="flex items-center justify-between mb-4 relative z-10">
-                <h3 className="text-slate-600 font-bold text-sm uppercase tracking-wider">{title}</h3>
-                <div className={`p-3 ${colors.iconBg} rounded-xl ${colors.text}`}>
+        <div className={`${colors.bg} rounded-xl p-6 border-2 border-${color}-200`}>
+            <div className="flex items-center justify-between mb-3">
+                <div className={`p-2 bg-white rounded-lg ${colors.icon}`}>
                     {icon}
                 </div>
             </div>
-            <div className="flex items-end space-x-2 relative z-10">
-                <span className={`text-4xl font-bold bg-gradient-to-r ${colors.bg} bg-clip-text text-transparent`}>
-                    {value}
-                </span>
-            </div>
-            <p className="text-xs text-slate-500 mt-3 font-medium relative z-10">{trend}</p>
+            <p className={`text-3xl font-bold ${colors.text} mb-1`}>{value}</p>
+            <p className="text-sm font-semibold text-slate-600">{label}</p>
         </div>
     );
 };

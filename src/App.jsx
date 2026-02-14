@@ -8,9 +8,11 @@ import Staff from './pages/Staff';
 import Settings from './pages/Settings';
 import Inbox from './pages/Inbox';
 import Bookings from './pages/Bookings';
+import StaffBookings from './pages/StaffBookings';
 import Forms from './pages/Forms';
 import Inventory from './pages/Inventory';
 import ActivateWorkspace from './pages/ActivateWorkspace';
+import Integrations from './pages/Integrations';
 import PublicContactForm from './pages/public/PublicContactForm';
 import PublicBookingPage from './pages/public/PublicBookingPage';
 
@@ -27,8 +29,10 @@ function App() {
                     <Route path="/settings" element={<Settings />} />
                     <Route path="/inbox" element={<Inbox />} />
                     <Route path="/bookings" element={<Bookings />} />
+                    <Route path="/staff-bookings" element={<StaffBookings />} />
                     <Route path="/forms" element={<Forms />} />
                     <Route path="/inventory" element={<Inventory />} />
+                    <Route path="/integrations" element={<Integrations />} />
                     <Route path="/activate" element={<ActivateWorkspace />} />
                     <Route path="/contact" element={<PublicContactForm />} />
                     <Route path="/book/:businessId?" element={<PublicBookingPage />} />

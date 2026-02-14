@@ -3,7 +3,12 @@ import { useCareOps } from '../../context/CareOpsContext';
 import { CheckCircle, Mail, Phone, User, MessageSquare, Sparkles } from 'lucide-react';
 
 const PublicContactForm = () => {
-    const { addContact, addConversation, addMessageToConversation, integrations } = useCareOps();
+    const {
+        findOrCreateContact,
+        findOrCreateConversation,
+        sendWelcomeMessage,
+        addMessageToConversation
+    } = useCareOps();
     const [submitted, setSubmitted] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
@@ -46,28 +51,22 @@ const PublicContactForm = () => {
 
         if (!validate()) return;
 
-        // Create contact
-        const contact = addContact({
+        // Find or create contact (prevents duplicates)
+        const contact = findOrCreateContact({
             name: formData.name,
             email: formData.email,
             phone: formData.phone
         });
 
-        // Create conversation
-        const conversation = addConversation({
-            contactId: contact.id,
-            contactName: contact.name
+        // Find or create conversation for this contact
+        const conversation = findOrCreateConversation(contact.id, contact.name, {
+            contactEmail: contact.email,
+            contactPhone: contact.phone,
+            automationStatus: 'Active'
         });
 
-        // Send welcome message
-        const welcomeChannel = integrations.email.connected ? 'email' : 'sms';
-        const welcomeMessage = {
-            sender: 'system',
-            content: `Hi ${formData.name}! Thanks for reaching out. We've received your message and will get back to you soon.`,
-            channel: welcomeChannel,
-            type: 'automated'
-        };
-        addMessageToConversation(conversation.id, welcomeMessage);
+        // Send automated welcome message
+        sendWelcomeMessage(conversation.id, contact.name);
 
         // Add customer's initial message if provided
         if (formData.message.trim()) {
@@ -75,7 +74,9 @@ const PublicContactForm = () => {
                 sender: 'customer',
                 content: formData.message,
                 channel: 'form',
-                type: 'customer'
+                type: 'manual',
+                deliveryStatus: 'delivered',
+                read: false
             });
         }
 
