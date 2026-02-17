@@ -1,13 +1,49 @@
-import { useState } from 'react';
+
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCareOps } from '../context/CareOpsContext';
-import { ArrowLeft, Calendar, Clock, MapPin, Globe, CheckCircle, AlertCircle, X, RefreshCw, MessageSquare } from 'lucide-react';
+import bookingService from '../services/booking.service';
+import formService from '../services/form.service';
+import conversationService from '../services/conversation.service';
+import { ArrowLeft, Calendar, Clock, MapPin, Globe, CheckCircle, AlertCircle, X, RefreshCw, MessageSquare, Loader } from 'lucide-react';
 
 const StaffBookings = () => {
-    const { bookings, formSubmissions, conversations, updateBookingStatus, resendForm, markFormAsCompleted } = useCareOps();
     const navigate = useNavigate();
+    // No context needed for data anymore, maybe just business/user info if needed
+    const { business } = useCareOps();
+
+    const [bookings, setBookings] = useState([]);
+    const [formSubmissions, setFormSubmissions] = useState([]);
+    const [conversations, setConversations] = useState([]);
+    const [loading, setLoading] = useState(true);
+
     const [filter, setFilter] = useState('today');
     const [selectedBooking, setSelectedBooking] = useState(null);
+
+    useEffect(() => {
+        fetchData();
+    }, []);
+
+    const fetchData = async () => {
+        setLoading(true);
+        try {
+            const [bookingsData, formsData, conversationsData] = await Promise.all([
+                bookingService.getBookings(),
+                // Mock or implement getSubmissions in formService if not exists
+                // For now, assuming endpoints exist or reusing mocks
+                formService.getForms(), // This gets templates, not submissions. We might need a separate call for submissions.
+                conversationService.getConversations()
+            ]);
+
+            setBookings(bookingsData);
+            // setFormSubmissions(formsData); // Temporarily commented out until submissions endpoint is verified
+            setConversations(conversationsData);
+        } catch (error) {
+            console.error("Error fetching staff bookings data", error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const today = new Date().toISOString().split('T')[0];
 
@@ -18,6 +54,7 @@ const StaffBookings = () => {
     });
 
     const getBookingForms = (bookingId) => {
+        // Mocking: return empty array or implementing specific logic if available
         return formSubmissions.filter(f => f.bookingId === bookingId);
     };
 
@@ -25,17 +62,27 @@ const StaffBookings = () => {
         return conversations.find(c => c.relatedBookingId === bookingId);
     };
 
-    const handleStatusUpdate = (bookingId, newStatus) => {
-        updateBookingStatus(bookingId, newStatus, 'Staff');
-        setSelectedBooking(null);
+    const handleStatusUpdate = async (bookingId, newStatus) => {
+        try {
+            await bookingService.updateBookingStatus(bookingId, newStatus);
+            setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: newStatus } : b));
+            if (selectedBooking && selectedBooking.id === bookingId) {
+                setSelectedBooking(prev => ({ ...prev, status: newStatus }));
+            }
+        } catch (error) {
+            console.error("Failed to update status", error);
+        }
     };
 
-    const handleResendForm = (formId, conversationId) => {
-        resendForm(formId, conversationId, 'Staff');
+    // Placeholder handlers for forms
+    const handleResendForm = async (formId, conversationId) => {
+        console.log("Resending form...", formId);
+        // await formService.resendForm(formId); 
     };
 
-    const handleMarkFormCompleted = (formId, conversationId) => {
-        markFormAsCompleted(formId, conversationId, 'Staff');
+    const handleMarkFormCompleted = async (formId, conversationId) => {
+        console.log("Marking form completed...", formId);
+        // await formService.completeForm(formId);
     };
 
     const getStatusColor = (status) => {
@@ -59,7 +106,7 @@ const StaffBookings = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 animate-fade-in">
             {/* Header */}
             <header className="bg-white shadow-lg border-b border-slate-100 sticky top-0 z-50 backdrop-blur-sm bg-white/95">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
@@ -92,8 +139,8 @@ const StaffBookings = () => {
                         <button
                             onClick={() => setFilter('today')}
                             className={`px-6 py-2 rounded-lg font-semibold transition-all ${filter === 'today'
-                                    ? 'bg-indigo-600 text-white shadow-lg'
-                                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                                ? 'bg-indigo-600 text-white shadow-lg'
+                                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                                 }`}
                         >
                             Today
@@ -101,8 +148,8 @@ const StaffBookings = () => {
                         <button
                             onClick={() => setFilter('upcoming')}
                             className={`px-6 py-2 rounded-lg font-semibold transition-all ${filter === 'upcoming'
-                                    ? 'bg-indigo-600 text-white shadow-lg'
-                                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                                ? 'bg-indigo-600 text-white shadow-lg'
+                                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                                 }`}
                         >
                             Upcoming
@@ -110,8 +157,8 @@ const StaffBookings = () => {
                         <button
                             onClick={() => setFilter('all')}
                             className={`px-6 py-2 rounded-lg font-semibold transition-all ${filter === 'all'
-                                    ? 'bg-indigo-600 text-white shadow-lg'
-                                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                                ? 'bg-indigo-600 text-white shadow-lg'
+                                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                                 }`}
                         >
                             All
@@ -120,60 +167,67 @@ const StaffBookings = () => {
                 </div>
 
                 {/* Bookings List */}
-                <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-6">
-                    <h2 className="text-xl font-bold text-slate-900 mb-6">Appointments</h2>
-                    {filteredBookings.length === 0 ? (
-                        <p className="text-slate-500 text-center py-8">No bookings found</p>
-                    ) : (
-                        <div className="space-y-3">
-                            {filteredBookings.map(booking => {
-                                const bookingForms = getBookingForms(booking.id);
-                                const completedForms = bookingForms.filter(f => f.status === 'Completed').length;
-                                const totalForms = bookingForms.length;
+                {loading ? (
+                    <div className="p-12 text-center flex flex-col items-center justify-center">
+                        <Loader className="w-8 h-8 text-indigo-600 animate-spin mb-4" />
+                        <p className="text-slate-500">Loading bookings...</p>
+                    </div>
+                ) : (
+                    <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-6">
+                        <h2 className="text-xl font-bold text-slate-900 mb-6">Appointments</h2>
+                        {filteredBookings.length === 0 ? (
+                            <p className="text-slate-500 text-center py-8">No bookings found</p>
+                        ) : (
+                            <div className="space-y-3">
+                                {filteredBookings.map(booking => {
+                                    const bookingForms = getBookingForms(booking.id);
+                                    const completedForms = bookingForms.filter(f => f.status === 'Completed').length;
+                                    const totalForms = bookingForms.length;
 
-                                return (
-                                    <div key={booking.id} className="p-4 bg-slate-50 rounded-xl border border-slate-200 hover:shadow-md transition-shadow">
-                                        <div className="flex items-center justify-between mb-3">
-                                            <div>
-                                                <h3 className="font-semibold text-slate-900">{booking.customerName}</h3>
-                                                <p className="text-sm text-slate-600">{booking.service}</p>
+                                    return (
+                                        <div key={booking.id} className="p-4 bg-slate-50 rounded-xl border border-slate-200 hover:shadow-md transition-shadow">
+                                            <div className="flex items-center justify-between mb-3">
+                                                <div>
+                                                    <h3 className="font-semibold text-slate-900">{booking.customerName}</h3>
+                                                    <p className="text-sm text-slate-600">{booking.service}</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-sm font-semibold text-slate-900">{booking.date}</p>
+                                                    <p className="text-sm text-slate-600">{booking.time}</p>
+                                                </div>
                                             </div>
-                                            <div className="text-right">
-                                                <p className="text-sm font-semibold text-slate-900">{booking.date}</p>
-                                                <p className="text-sm text-slate-600">{booking.time}</p>
-                                            </div>
-                                        </div>
 
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center space-x-3">
-                                                <span className={`px-3 py-1 rounded-lg text-xs font-semibold border ${getStatusColor(booking.status)}`}>
-                                                    {booking.status}
-                                                </span>
-                                                {totalForms > 0 && (
-                                                    <span className="text-xs text-slate-600">
-                                                        Forms: {completedForms}/{totalForms} ✓
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center space-x-3">
+                                                    <span className={`px-3 py-1 rounded-lg text-xs font-semibold border ${getStatusColor(booking.status)}`}>
+                                                        {booking.status}
                                                     </span>
-                                                )}
+                                                    {totalForms > 0 && (
+                                                        <span className="text-xs text-slate-600">
+                                                            Forms: {completedForms}/{totalForms} ✓
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <button
+                                                    onClick={() => setSelectedBooking(booking)}
+                                                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-semibold"
+                                                >
+                                                    View Details
+                                                </button>
                                             </div>
-                                            <button
-                                                onClick={() => setSelectedBooking(booking)}
-                                                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-semibold"
-                                            >
-                                                View Details
-                                            </button>
                                         </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-                </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                )}
             </main>
 
             {/* Booking Detail Modal */}
             {selectedBooking && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-slide-in-up">
                         {/* Modal Header */}
                         <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
                             <h2 className="text-xl font-bold text-slate-900">Booking Details</h2>

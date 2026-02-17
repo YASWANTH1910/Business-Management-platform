@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CareOps - Token Setup</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+        p {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .instructions {
+            background: #f0f4ff;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 8px;
+        }
+        .instructions h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        .instructions ol {
+            margin-left: 20px;
+        }
+        .instructions li {
+            margin-bottom: 10px;
+            color: #555;
+        }
+        .instructions code {
+            background: #e0e7ff;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+        label {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        textarea {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            resize: vertical;
+            min-height: 120px;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 20px;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        .message {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            display: none;
+        }
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .status.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔑 CareOps Token Setup</h1>
+        <p>Set your JWT token to authenticate with the backend</p>
+
+        <div class="instructions">
+            <h3>How to get your token:</h3>
+            <ol>
+                <li>Open <a href="http://localhost:8000/docs" target="_blank">Swagger UI</a></li>
+                <li>Find <code>POST /auth/login</code></li>
+                <li>Click "Try it out" and enter your credentials</li>
+                <li>Click "Execute"</li>
+                <li>Copy the <code>access_token</code> value</li>
+                <li>Paste it below</li>
+            </ol>
+        </div>
+
+        <div id="status" class="status">
+            <strong>Current Status:</strong> <span id="statusText">No token set</span>
+        </div>
+
+        <label for="token">JWT Token:</label>
+        <textarea id="token" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyIiwiZXhwIjoxNzcxMDg4Mzc4fQ.yq8RlQCdBcugxd3H2FTdyQPx3eR9fYieizh_pGsdurA"></textarea>
+
+        <button onclick="setToken()">Set Token & Save</button>
+
+        <div id="message" class="message"></div>
+    </div>
+
+    <script>
+        // Check current status on load
+        window.onload = function() {
+            const currentToken = localStorage.getItem('careops_token');
+            const statusDiv = document.getElementById('status');
+            const statusText = document.getElementById('statusText');
+            
+            if (currentToken) {
+                statusDiv.classList.add('show');
+                statusText.textContent = `Token is set (${currentToken.substring(0, 30)}...)`;
+            }
+        };
+
+        function setToken() {
+            const tokenInput = document.getElementById('token');
+            const messageDiv = document.getElementById('message');
+            const token = tokenInput.value.trim();
+
+            if (!token) {
+                showMessage('Please enter a token', 'error');
+                return;
+            }
+
+            if (!token.startsWith('eyJ')) {
+                showMessage('Invalid token format. Token should start with "eyJ"', 'error');
+                return;
+            }
+
+            // Save token
+            localStorage.setItem('careops_token', token);
+
+            // Save mock user
+            localStorage.setItem('careops_user', JSON.stringify({
+                id: 2,
+                name: 'Test User',
+                email: 'test@example.com',
+                role: 'admin'
+            }));
+
+            showMessage('✅ Token saved successfully! You can now close this page and go to your dashboard.', 'success');
+
+            // Update status
+            document.getElementById('statusText').textContent = `Token is set (${token.substring(0, 30)}...)`;
+            document.getElementById('status').classList.add('show');
+
+            // Clear input
+            tokenInput.value = '';
+        }
+
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = text;
+            messageDiv.className = 'message ' + type;
+            messageDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

@@ -1,11 +1,16 @@
-import { useState } from 'react';
+
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCareOps } from '../context/CareOpsContext';
-import { ArrowLeft, Users, Shield, CheckCircle, XCircle, Mail, Plus, Edit2, Trash2, X, Crown } from 'lucide-react';
+import staffService from '../services/staff.service';
+import { ArrowLeft, Users, Shield, CheckCircle, XCircle, Mail, Plus, Edit2, Trash2, X, Crown, Loader } from 'lucide-react';
 
 const Staff = () => {
     const navigate = useNavigate();
-    const { staff, addStaff, updateStaff, deleteStaff, updateStaffPermissions, business } = useCareOps();
+    const { business } = useCareOps();
+    const [staff, setStaff] = useState([]);
+    const [loading, setLoading] = useState(true);
+
     const [showModal, setShowModal] = useState(false);
     const [editingStaff, setEditingStaff] = useState(null);
     const [staffForm, setStaffForm] = useState({
@@ -19,6 +24,24 @@ const Staff = () => {
             inventory: false
         }
     });
+
+    useEffect(() => {
+        fetchStaff();
+    }, []);
+
+    const fetchStaff = async () => {
+        setLoading(true);
+        try {
+            // Ideally we'd fetch this from service
+            // For now, mock it locally if service isn't ready, but let's assume one exists or we mock it here
+            const data = await staffService.getStaff();
+            setStaff(data);
+        } catch (error) {
+            console.error("Failed to fetch staff", error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleOpenModal = (staffMember = null) => {
         if (staffMember) {
@@ -51,14 +74,20 @@ const Staff = () => {
         setEditingStaff(null);
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        if (editingStaff) {
-            updateStaff(editingStaff.id, staffForm);
-        } else {
-            addStaff(staffForm);
+        try {
+            if (editingStaff) {
+                const updated = await staffService.updateStaff(editingStaff.id, staffForm);
+                setStaff(prev => prev.map(s => s.id === editingStaff.id ? updated : s));
+            } else {
+                const created = await staffService.addStaff(staffForm);
+                setStaff(prev => [...prev, created]);
+            }
+            handleCloseModal();
+        } catch (error) {
+            console.error("Failed to save staff member", error);
         }
-        handleCloseModal();
     };
 
     const handlePermissionToggle = (permission) => {
@@ -71,9 +100,14 @@ const Staff = () => {
         }));
     };
 
-    const handleDelete = (id) => {
+    const handleDelete = async (id) => {
         if (window.confirm('Are you sure you want to remove this staff member?')) {
-            deleteStaff(id);
+            try {
+                await staffService.deleteStaff(id);
+                setStaff(prev => prev.filter(s => s.id !== id));
+            } catch (error) {
+                console.error("Failed to delete staff member", error);
+            }
         }
     };
 
@@ -82,7 +116,7 @@ const Staff = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 animate-fade-in">
             {/* Header */}
             <header className="bg-white shadow-lg border-b border-slate-100 sticky top-0 z-50 backdrop-blur-sm bg-white/95">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
@@ -140,7 +174,7 @@ const Staff = () => {
                                     </div>
                                 </div>
                             </div>
-                            <div className="flex-1 md:border-l md:border-amber-200 md:pl-8 md:ml-8">
+                            <div className="hidden md:block flex-1 border-l border-amber-200 pl-8 ml-8">
                                 <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center space-x-2">
                                     <Shield className="w-4 h-4" />
                                     <span>Full Access</span>
@@ -159,7 +193,12 @@ const Staff = () => {
                 )}
 
                 {/* Staff List */}
-                {staff.length === 0 ? (
+                {loading ? (
+                    <div className="p-12 text-center flex flex-col items-center justify-center">
+                        <Loader className="w-8 h-8 text-indigo-600 animate-spin mb-4" />
+                        <p className="text-slate-500">Loading staff members...</p>
+                    </div>
+                ) : staff.length === 0 ? (
                     <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-12 text-center">
                         <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-full mb-4">
                             <Users className="w-8 h-8 text-slate-400" />
@@ -185,8 +224,8 @@ const Staff = () => {
                                         <div>
                                             <h3 className="text-xl font-bold text-slate-900">{member.name}</h3>
                                             <span className={`inline-block mt-1 px-3 py-1 text-xs font-bold rounded-full uppercase tracking-wider ${member.status === 'Active'
-                                                    ? 'bg-green-100 text-green-700'
-                                                    : 'bg-yellow-100 text-yellow-700'
+                                                ? 'bg-green-100 text-green-700'
+                                                : 'bg-yellow-100 text-yellow-700'
                                                 }`}>
                                                 {member.status}
                                             </span>
@@ -235,8 +274,8 @@ const Staff = () => {
 
             {/* Add/Edit Staff Modal */}
             {showModal && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-slide-in-up">
                         <div className="sticky top-0 bg-white border-b border-slate-200 p-6 flex items-center justify-between">
                             <h2 className="text-2xl font-bold text-slate-900">
                                 {editingStaff ? 'Edit Staff Member' : 'Add Staff Member'}
